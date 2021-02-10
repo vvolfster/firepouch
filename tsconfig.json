@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "lib": ["es6"],
+        "declaration": true,
+        "sourceMap": true,
+        "outDir": "dist",
+        "noFallthroughCasesInSwitch": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "baseUrl": "."
+    },
+    "include": ["src", "WatchServer.js"],
+    "watchOptions": {
+        // Use native file system events for files and directories
+        "watchFile": "useFsEvents",
+        "watchDirectory": "useFsEvents",
+
+        // Poll files for updates more frequently
+        // when they're updated a lot.
+        "fallbackPolling": "dynamicPriority"
+    }
+}

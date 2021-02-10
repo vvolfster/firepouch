@@ -1,0 +1,16 @@
+/node_modules
+/public
+/scripts
+/build
+
+node_modules
+public
+scripts
+build
+
+/node_modules/*
+/public/*
+/scripts/*
+/build/*
+
+# These rules as well as what's in .eslintignore do not appear to be respected when running `npm run lint`
