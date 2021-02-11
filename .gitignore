@@ -25,3 +25,9 @@ scripts/temp/test.js
 scripts/envVars/envFiles
 .env
 **.env
+dist
+debug.log
+my-backup/**/*
+my-backup-*/**/*
+my-backup.json
+my-backup.zip
