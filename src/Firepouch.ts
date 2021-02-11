@@ -3,7 +3,9 @@ import { firestore } from "firebase-admin"
 import { nanoid } from "nanoid"
 import * as path from "path"
 import { FirestorePouchDb, FirestorePouchDocument } from "./FirestorePouchDb"
-import { archiveDirectory, Logger, promiseChain, removeDir } from "./helpers"
+import { archiveDirectory, extractZip, Logger, promiseChain, removeDir } from "./helpers"
+import { getTempDir, getTempFileName } from "./helpers/getTempDir"
+import { removeFile } from "./helpers/removeDir"
 
 interface BackupParams {
     name?: string
@@ -128,7 +130,7 @@ export class Firepouch {
             const batch = admin.firestore().batch()
             values.forEach(val => {
                 const ref = collectionRef.doc(val.id)
-                batch.set(ref, { ...val.data, __firepouchrestored: true })
+                batch.set(ref, val.data)
             })
             return batch.commit()
         })
@@ -176,10 +178,26 @@ export class Firepouch {
     }
 
     createBackupToArchive = async (params?: BackupArchiveParams) => {
-        // await this.createBackup(params)
-        const db = new FirestorePouchDb(this.getDbPath(params))
+        const dbPath = this.getDbPath(params)
+        await this.createBackup(params)
+        const db = new FirestorePouchDb(dbPath)
         await db.close()
-        await archiveDirectory(db.name, params?.dest || `${db.name}.zip`)
+        const zipPath = await archiveDirectory(db.name, params?.dest || `${db.name}.zip`)
+        return zipPath
+    }
+
+    createBackupToCloudStorage = async (destination: string) => {
+        const tempName = `createBackupToCloudStorage-${nanoid()}`
+        const tempDir = getTempDir(tempName)
+        const zipFile = `${getTempFileName(tempName)}.zip`
+        await this.createBackupToArchive({
+            name: tempDir,
+            dest: zipFile
+        })
+
+        await this.app.storage().bucket().upload(zipFile, { destination })
+        await removeDir(tempDir)
+        await removeFile(zipFile)
     }
 
     restoreBackup = async (params?: BackupParams) => {
@@ -204,7 +222,34 @@ export class Firepouch {
             await promiseChain(fns)
         }
 
+        await db.close()
         logger.log(`Finished restoring backup in ${new Date().getTime() - now.getTime()} ms`)
+    }
+
+    restoreFromArchive = async (params: { name: string }) => {
+        const zipPath = path.isAbsolute(params.name) ? params.name : path.resolve(process.cwd(), params.name)
+        const extractedPath = await extractZip(zipPath)
+
+        // use the extracted path to restore the backup
+        await this.restoreBackup({
+            name: extractedPath
+        })
+
+        // now delete the temp folder
+        removeDir(extractedPath)
+    }
+
+    restoreBackupFromCloudStorage = async (path: string) => {
+        const tempName = `restoreBackupFromCloudStorage-${nanoid()}`
+        const zipFile = `${getTempFileName(tempName)}.zip`
+
+        await this.app.storage().bucket().file(path).download({
+            destination: zipFile
+        })
+
+        console.log("restoring", zipFile)
+        await this.restoreFromArchive({ name: zipFile })
+        await removeFile(zipFile)
     }
 
     dumpToJson = async (params?: DumpToJsonParams) => {

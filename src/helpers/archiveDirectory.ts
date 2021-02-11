@@ -1,34 +1,23 @@
 import * as fs from "fs"
 import archiver from "archiver"
 
-function timer(fn: () => void) {
-    setTimeout(() => {
-        fn()
-        timer(fn)
-    }, 1000)
-}
-
-export function archiveDirectory(dir: string, dest: string) {
+export function archiveDirectory(dir: string, dest: string): Promise<string> {
     const output = fs.createWriteStream(dest)
     console.log("archiving directory", dir)
 
     const archive = archiver("zip", { zlib: { level: 0 } })
-    return new Promise<void>((resolve, reject) => {
-        output.on("end", () => {
-            console.log("data has been drained")
-        })
+    return new Promise<string>((resolve, reject) => {
         output.on("error", reject)
         output.on("close", () => {
-            console.log(`Finished writing ${dest}`)
-            resolve()
+            const MB = (archive.pointer() / 1024 / 1024).toFixed(1)
+            console.log(`Finished writing ${MB} mb to ${dest}`)
+            resolve(dest)
         })
 
         archive.pipe(output)
 
-        archive.directory(dir, "./")
+        archive.directory(dir, "")
         archive.on("error", reject)
-
-        timer(() => console.log(archive.pointer(), "bytes written"))
 
         archive.finalize()
     })
