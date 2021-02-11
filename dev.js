@@ -23,8 +23,8 @@ async function start() {
     const name = "my-backup"
     const firepouch = new Firepouch({ app: getAdminApp() })
     // await firepouch.createBackup({ name })
+    await firepouch.dumpToJson({ name })
     await firepouch.createBackupToArchive({ name })
-    // await firepouch.dumpToJson({ name })
     // await firepouch.restoreBackup({ name })
 }
 

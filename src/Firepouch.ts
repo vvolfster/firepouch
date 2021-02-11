@@ -137,23 +137,21 @@ export class Firepouch {
         return restoreCount
     }
 
-    private getDb = (params?: Omit<BackupParams, "collectionNames">) => {
+    private getDbPath = (params?: Omit<BackupParams, "collectionNames">) => {
         if (params?.name) {
             const dbPath = path.isAbsolute(params.name) ? params.name : path.resolve(process.cwd(), params.name)
-            removeDir(dbPath)
-            return new FirestorePouchDb(dbPath)
+            return dbPath
         }
 
         const now = new Date()
         const saveableDate = now.toISOString().split(":").join("_")
-        const pathToDb = path.resolve(process.cwd(), `${saveableDate}---${nanoid()}`)
-        return new FirestorePouchDb(pathToDb)
+        return path.resolve(process.cwd(), `${saveableDate}---${nanoid()}`)
     }
 
     createBackup = async (params?: BackupParams) => {
         const now = new Date()
-        const db = this.getDb(params)
-        await db.clear()
+        removeDir(this.getDbPath(params))
+        const db = new FirestorePouchDb(this.getDbPath(params))
 
         const dbName = path.basename(db.name)
 
@@ -179,14 +177,14 @@ export class Firepouch {
 
     createBackupToArchive = async (params?: BackupArchiveParams) => {
         // await this.createBackup(params)
-        const db = this.getDb(params)
+        const db = new FirestorePouchDb(this.getDbPath(params))
         await db.close()
         await archiveDirectory(db.name, params?.dest || `${db.name}.zip`)
     }
 
     restoreBackup = async (params?: BackupParams) => {
         const now = new Date()
-        const db = this.getDb(params)
+        const db = new FirestorePouchDb(this.getDbPath(params))
 
         const dbName = path.basename(db.name)
         const logger = new Logger(`firepouch.restoreBackup(${dbName})::`)
@@ -210,7 +208,7 @@ export class Firepouch {
     }
 
     dumpToJson = async (params?: DumpToJsonParams) => {
-        const db = this.getDb(params)
+        const db = new FirestorePouchDb(this.getDbPath(params))
         const dest = params?.destination || path.resolve(db.name, `${path.basename(db.name)}.json`)
         await db.dumpToJson(dest)
     }
