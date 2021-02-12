@@ -1,8 +1,8 @@
 {
     "name": "firepouch",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "import/export firestore to/from pouchdb",
-    "main": "index.js",
+    "main": "dist/index.js",
     "dependencies": {
         "extract-zip": "2.0.1",
         "env-paths": "^2.2.0",
