@@ -165,7 +165,10 @@ export class Firepouch {
         logger.log(`Creating backup to ${db.name}`)
 
         if (collectionNames.length) {
-            await Promise.all(collectionNames.map(name => this.backupCollection(name, db, logger)))
+            const fns = collectionNames.map(name => {
+                return () => this.backupCollection(name, db, logger)
+            })
+            await promiseChain(fns)
         }
 
         await db.meta.set({
