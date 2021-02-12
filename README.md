@@ -71,10 +71,10 @@ async function start() {
     const firepouch = new Firepouch({ app: getAdminApp() })
 
     // create a backupArchive & upload it to cloud storage
-    await firepouch.createBackupToCloudStorage("backups/my-backup.zip")
+    await firepouch.createBackupToCloudStorage({ path: "backups/my-backup.zip" })
     
     // restore from cloud storage
-    await firepouch.restoreBackupFromCloudStorage("backups/my-backup.zip")
+    await firepouch.restoreBackupFromCloudStorage({ path: "backups/my-backup.zip" })
 }
 
 start()
@@ -93,10 +93,10 @@ async function start() {
     const firepouch = new Firepouch({ app: getAdminApp() })
 
     // create a backupArchive
-    await firepouch.createBackupToArchive({ name })
+    await firepouch.createBackupToArchive({ dest: "my-backup.zip" })
     
     // restore from archive
-    await firepouch.restoreFromArchive({ name })
+    await firepouch.restoreFromArchive({ name: "my-backup.zip" })
 }
 
 start()

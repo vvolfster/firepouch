@@ -10,10 +10,20 @@ import { removeFile } from "./helpers/removeDir"
 interface BackupParams {
     name?: string
     collectionNames?: string[]
+    collectionNamesExclude?: string[]
 }
 
 interface BackupArchiveParams extends BackupParams {
     dest?: string
+}
+
+interface RestoreArchiveParams extends Omit<BackupParams, "name"> {
+    path: string
+}
+
+interface BackupCloudStorageParams extends Omit<BackupParams, "name"> {
+    path: string
+    storage?: admin.storage.Storage
 }
 
 interface DumpToJsonParams extends Omit<BackupParams, "collectionNames"> {
@@ -158,8 +168,18 @@ export class Firepouch {
         const dbName = path.basename(db.name)
 
         // now do the backup
-        const allCollections = await this.app.firestore().listCollections()
-        const collectionNames = params?.collectionNames || allCollections.map(c => c.id)
+        let collectionNames: string[] = []
+        if (params?.collectionNames) {
+            collectionNames = params.collectionNames
+        } else {
+            const allCollections = await this.app.firestore().listCollections()
+            collectionNames = allCollections.map(c => c.id)
+        }
+
+        if (params?.collectionNamesExclude) {
+            collectionNames = collectionNames.filter(name => !params.collectionNamesExclude?.includes(name))
+        }
+
         const logger = new Logger(`firepouch.createBackup(${dbName})::`)
         logger.log(`Found collections:: ${JSON.stringify(collectionNames)}`)
         logger.log(`Creating backup to ${db.name}`)
@@ -189,20 +209,19 @@ export class Firepouch {
         return zipPath
     }
 
-    createBackupToCloudStorage = async (destination: string, storage?: admin.storage.Storage) => {
+    createBackupToCloudStorage = async (params: BackupCloudStorageParams) => {
         const tempName = `createBackupToCloudStorage-${nanoid()}`
         const tempDir = getTempDir(tempName)
         const zipFile = `${getTempFileName(tempName)}.zip`
         await this.createBackupToArchive({
             name: tempDir,
+            collectionNames: params.collectionNames,
+            collectionNamesExclude: params.collectionNamesExclude,
             dest: zipFile
         })
 
-        if (!storage) {
-            storage = this.app.storage()
-        }
-
-        await storage.bucket().upload(zipFile, { destination })
+        const storage = params.storage || this.app.storage()
+        await storage.bucket().upload(zipFile, { destination: params.path })
         await removeDir(tempDir)
         await removeFile(zipFile)
     }
@@ -214,13 +233,22 @@ export class Firepouch {
         const dbName = path.basename(db.name)
         const logger = new Logger(`firepouch.restoreBackup(${dbName})::`)
 
-        const meta = await db.meta.get()
-        if (!meta) {
-            throw new Error("firepouch.restoreBackup:: Cannot restore because db has no firepouch meta")
+        let collectionNames: string[] = []
+        if (params?.collectionNames) {
+            collectionNames = params.collectionNames
+        } else {
+            const meta = await db.meta.get()
+            if (!meta) {
+                throw new Error("firepouch.restoreBackup:: Cannot restore because db has no firepouch meta")
+            }
+            collectionNames = meta.collectionNames
         }
 
-        const { collectionNames } = meta
-        logger.log(`Found collections in backup:: ${JSON.stringify(meta)}`)
+        if (params?.collectionNamesExclude) {
+            collectionNames = collectionNames.filter(name => !params.collectionNamesExclude?.includes(name))
+        }
+
+        logger.log(`Found collections in backup:: ${JSON.stringify(collectionNames)}`)
 
         if (collectionNames.length) {
             const fns = collectionNames.map(name => {
@@ -233,32 +261,32 @@ export class Firepouch {
         logger.log(`Finished restoring backup in ${new Date().getTime() - now.getTime()} ms`)
     }
 
-    restoreFromArchive = async (params: { name: string }) => {
-        const zipPath = path.isAbsolute(params.name) ? params.name : path.resolve(process.cwd(), params.name)
+    restoreFromArchive = async (params: RestoreArchiveParams) => {
+        const zipPath = path.isAbsolute(params.path) ? params.path : path.resolve(process.cwd(), params.path)
         const extractedPath = await extractZip(zipPath)
 
         // use the extracted path to restore the backup
         await this.restoreBackup({
-            name: extractedPath
+            name: extractedPath,
+            collectionNames: params.collectionNames,
+            collectionNamesExclude: params.collectionNamesExclude
         })
 
         // now delete the temp folder
         removeDir(extractedPath)
     }
 
-    restoreBackupFromCloudStorage = async (path: string, storage?: admin.storage.Storage) => {
+    restoreBackupFromCloudStorage = async (params: BackupCloudStorageParams) => {
         const tempName = `restoreBackupFromCloudStorage-${nanoid()}`
         const zipFile = `${getTempFileName(tempName)}.zip`
-        if (!storage) {
-            storage = this.app.storage()
-        }
+        const storage = params.storage || this.app.storage()
 
-        await storage.bucket().file(path).download({
+        await storage.bucket().file(params.path).download({
             destination: zipFile
         })
 
         console.log("restoring", zipFile)
-        await this.restoreFromArchive({ name: zipFile })
+        await this.restoreFromArchive({ path: zipFile, collectionNames: params.collectionNames, collectionNamesExclude: params.collectionNamesExclude })
         await removeFile(zipFile)
     }
 
