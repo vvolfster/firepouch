@@ -186,7 +186,7 @@ export class Firepouch {
         return zipPath
     }
 
-    createBackupToCloudStorage = async (destination: string) => {
+    createBackupToCloudStorage = async (destination: string, storage?: admin.storage.Storage) => {
         const tempName = `createBackupToCloudStorage-${nanoid()}`
         const tempDir = getTempDir(tempName)
         const zipFile = `${getTempFileName(tempName)}.zip`
@@ -195,7 +195,11 @@ export class Firepouch {
             dest: zipFile
         })
 
-        await this.app.storage().bucket().upload(zipFile, { destination })
+        if (!storage) {
+            storage = this.app.storage()
+        }
+
+        await storage.bucket().upload(zipFile, { destination })
         await removeDir(tempDir)
         await removeFile(zipFile)
     }
@@ -239,11 +243,14 @@ export class Firepouch {
         removeDir(extractedPath)
     }
 
-    restoreBackupFromCloudStorage = async (path: string) => {
+    restoreBackupFromCloudStorage = async (path: string, storage?: admin.storage.Storage) => {
         const tempName = `restoreBackupFromCloudStorage-${nanoid()}`
         const zipFile = `${getTempFileName(tempName)}.zip`
+        if (!storage) {
+            storage = this.app.storage()
+        }
 
-        await this.app.storage().bucket().file(path).download({
+        await storage.bucket().file(path).download({
             destination: zipFile
         })
 
