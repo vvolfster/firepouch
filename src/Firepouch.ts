@@ -23,7 +23,7 @@ interface DumpToJsonParams extends Omit<BackupParams, "collectionNames"> {
 interface FirepouchConstructorParams {
     batchLimit?: number
     app?: admin.app.App
-    initializeAppOptions: {
+    initializeAppOptions?: {
         options?: admin.AppOptions | undefined
         name?: string | undefined
     }
