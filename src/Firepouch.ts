@@ -222,8 +222,8 @@ export class Firepouch {
 
         const storage = params.storage || this.app.storage()
         await storage.bucket().upload(zipFile, { destination: params.path })
-        await removeDir(tempDir)
-        await removeFile(zipFile)
+        removeDir(tempDir)
+        removeFile(zipFile)
     }
 
     restoreBackup = async (params?: BackupParams) => {
@@ -287,7 +287,7 @@ export class Firepouch {
 
         console.log("restoring", zipFile)
         await this.restoreFromArchive({ path: zipFile, collectionNames: params.collectionNames, collectionNamesExclude: params.collectionNamesExclude })
-        await removeFile(zipFile)
+        removeFile(zipFile)
     }
 
     dumpToJson = async (params?: DumpToJsonParams) => {
